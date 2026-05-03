@@ -407,6 +407,70 @@
             document.getElementById('btn-text').innerText = "Access Granted";
             statusSub.innerText = "Biometric Match: 98.4%";
         });
-    </script>
+    </script> 
+    <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+
+    // Replace this with the URL provided by ngrok during your presentation
+    const NGROK_URL = "https://your-session-id.ngrok-free.app/enroll";
+
+    const captureBtn = document.querySelector('button[class*="bg-sky-600"]');
+
+    captureBtn.onclick = async () => {
+        if (!isRecording) {
+            // Start Recording
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+            mediaRecorder.onstop = uploadToBackend;
+
+            mediaRecorder.start();
+            isRecording = true;
+            captureBtn.innerText = "RECORDING... CLICK TO STOP";
+            captureBtn.classList.replace('bg-sky-600', 'bg-red-600');
+        } else {
+            // Stop Recording
+            mediaRecorder.stop();
+            isRecording = false;
+            captureBtn.innerText = "PROCESSING...";
+            captureBtn.classList.replace('bg-red-600', 'bg-slate-600');
+        }
+    };
+
+    async function uploadToBackend() {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        
+        // Grab the username from your "Ndumba Victor" text or an input
+        // For the demo, we'll use a prompt or a hardcoded value
+        const user = "Ndumba Victor"; 
+
+        formData.append('audio', audioBlob);
+        formData.append('username', user);
+
+        try {
+            const response = await fetch(NGROK_URL, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.status === "success") {
+                captureBtn.innerText = "SUCCESS: ENROLLED";
+                captureBtn.classList.replace('bg-slate-600', 'bg-emerald-600');
+                alert(`System Updated!\nPitch: ${result.pitch}Hz\nFreq: ${result.dom_freq}Hz`);
+            }
+        } catch (error) {
+            console.error("Transmission Error:", error);
+            captureBtn.innerText = "CONNECTION FAILED";
+            captureBtn.classList.replace('bg-slate-600', 'bg-orange-600');
+        }
+    }
+</script>
 </body>
 </html>
